@@ -1,0 +1,10 @@
+To do:
+ Sort a better way of positioning and spacing settings
+- Put server on Pi with autostart
+- Add ability to send OSC from admin page 
+- 
+
+Notes:
+- The view screen is on a browser tab on a pc that is connected to the LAN, which shows the fullscreen tab on the wide LED screen. 
+- LED Screen resolution is 1920 x 2160 (16:9)
+- Admin screen and view screen front end both served by node server on pi via dist folder

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import tailwindConfig from "../tailwind.config";
 
 export default function App() {
   const API_BASE = ""; // "" if same-origin or Vite proxy; otherwise "http://<HOST-IP>:9979"
@@ -297,7 +298,7 @@ export default function App() {
         style={{
           color: viewStyle.fontColor,
           fontFamily: viewStyle.fontFamily,
-          backgroundColor: "livewire-blue", // slate-950 fallback
+          backgroundColor: "lw-blue-400", // slate-950 fallback
           backgroundImage: viewStyle.bgImageUrl ? `url(${viewStyle.bgImageUrl})` : "none",
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -316,12 +317,7 @@ export default function App() {
           <div className={`min-h-screen w-full flex ${viewStyle.align} ${viewStyle.justify} px-10`}>
             <div className="w-full max-w-5xl">
               <div className="mb-8 flex items-end justify-between">
-                <div>
-                 
-                </div>
-                <div className="text-sm opacity-70">{queue.length} total</div>
               </div>
-
               {queue.length === 0 ? (
                 <div className="rounded-3xl border border-white/10 bg-white/5 p-10">
                   <div className="text-2xl font-semibold">No bookings yet</div>
@@ -330,7 +326,7 @@ export default function App() {
               ) : (
                 <div className={`flex flex-col ${viewStyle.spacing}`}>
                   {top.map((q, idx) => (
-                    <div key={q.id} className="rounded-3xl border border-white/10 bg-white/5 px-8 py-6">
+                   
                       <div className="flex items-baseline justify-between gap-6">
                         <div className="min-w-0">
                           <div className="flex items-baseline gap-4">
@@ -348,7 +344,7 @@ export default function App() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    
                   ))}
 
                   {restCount > 0 && (
@@ -360,12 +356,6 @@ export default function App() {
           </div>
 
           <div className="absolute bottom-4 right-4 flex items-center gap-2">
-            <button
-              onClick={() => goto("admin")}
-              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium hover:bg-white/10"
-            >
-              Admin
-            </button>
           </div>
         </div>
       </div>
@@ -376,7 +366,7 @@ export default function App() {
   // ADMIN SCREEN
   // -------------------------
   return (
-    <div className="min-h-screen bg-lw-blue text-slate-900">
+    <div className="min-h-screen bg-blue-400 text-slate-900">
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="flex items-center justify-between gap-3">
           <div>

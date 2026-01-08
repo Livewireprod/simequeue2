@@ -1,25 +1,22 @@
-// server.js
-// LAN-only Express API for queue + time slots + view settings + background image upload (PNG/JPG)
-
 import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from "url";
+
 
 const app = express();
 app.use(express.json());
 
-// --------------------
-// In-memory state
-// --------------------
+
 let queue = [];
 let settings = {
-  // Slot system defaults
+
   slotMinutes: 15,
   dayStart: "09:00",
   dayEnd: "17:00",
 
-  // View defaults (optional; UI can overwrite)
+
   viewFontFamily: "System",
   viewFontColor: "#ffffff",
   viewBgImageUrl: "",
@@ -31,9 +28,8 @@ let settings = {
   viewShowCount: 3,
 };
 
-// --------------------
 // Helpers
-// --------------------
+
 function id() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -74,9 +70,7 @@ function sortedQueue(list) {
   });
 }
 
-// --------------------
-// Uploads (background images)
-// --------------------
+
 const UPLOAD_DIR = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
@@ -92,9 +86,7 @@ const upload = multer({
 // Serve uploaded files
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-// --------------------
-// Routes
-// --------------------
+
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
 // Queue
@@ -157,7 +149,7 @@ app.get("/api/slots", (_req, res) => {
   res.json({ ok: true, slots, taken });
 });
 
-// Settings (includes slot settings + view settings)
+// Settings 
 app.get("/api/settings", (_req, res) => {
   res.json({ ok: true, settings });
 });
@@ -170,8 +162,8 @@ app.put("/api/settings", (req, res) => {
   res.json({ ok: true, settings });
 });
 
-// Background image upload (PNG/JPG)
-// Expects multipart/form-data with field name: "file"
+// Background image upload 
+
 app.post("/api/upload/background", upload.single("file"), (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
@@ -193,9 +185,24 @@ app.post("/api/upload/background", upload.single("file"), (req, res) => {
   }
 });
 
-// --------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const DIST_DIR = path.join(__dirname, "dist");
+
+if (fs.existsSync(DIST_DIR)) {
+  app.use(express.static(DIST_DIR));
+
+
+  app.get(["/", "/view"], (req, res) => {
+    res.sendFile(path.join(DIST_DIR, "index.html"));
+  });
+
+
+} else {
+  console.warn("⚠️ dist folder not found at:", DIST_DIR);
+}
 // Start
-// --------------------
+
 const PORT = Number(process.env.PORT || 9979);
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`LAN server running on http://0.0.0.0:${PORT}`);
