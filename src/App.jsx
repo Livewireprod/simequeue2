@@ -273,7 +273,6 @@ export default function App() {
       const data = text ? JSON.parse(text) : null;
       if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
 
-      // Save URL into viewDraft and persist it (server route already sets it too, but we keep consistent)
       const url = data.url;
       setViewDraft((p) => ({ ...p, viewBgImageUrl: url }));
       await sendJSON("/api/settings", "PUT", { viewBgImageUrl: url });
@@ -285,9 +284,9 @@ export default function App() {
     }
   }
 
-  // -------------------------
+  
   // VIEW SCREEN
-  // -------------------------
+ 
   if (route === "view") {
     const top = queue.slice(0, viewStyle.showCount);
     const restCount = Math.max(0, queue.length - top.length);
@@ -298,7 +297,7 @@ export default function App() {
         style={{
           color: viewStyle.fontColor,
           fontFamily: viewStyle.fontFamily,
-          backgroundColor: "lw-blue-400", // slate-950 fallback
+          backgroundColor: "blue-400", 
           backgroundImage: viewStyle.bgImageUrl ? `url(${viewStyle.bgImageUrl})` : "none",
           backgroundSize: "cover",
           backgroundPosition: "center",
@@ -319,7 +318,7 @@ export default function App() {
               <div className="mb-8 flex items-end justify-between">
               </div>
               {queue.length === 0 ? (
-                <div className="rounded-3xl border border-white/10 bg-white/5 p-10">
+                <div className="p-10">
                   <div className="text-2xl font-semibold">No bookings yet</div>
                   <div className="mt-2 text-base opacity-70">Add names from the admin screen.</div>
                 </div>
