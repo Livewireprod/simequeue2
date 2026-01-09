@@ -17,7 +17,7 @@ export default function App() {
   
   const [status, setStatus] = useState({ type: "idle", msg: "" });
   const [name, setName] = useState("");
-  const [mode, setMode] = useState("auto"); // "auto" | "manual"
+  const [mode, setMode] = useState("auto"); 
   const [manualTime, setManualTime] = useState("");
 
   // View settings 
@@ -28,7 +28,6 @@ export default function App() {
     viewSpacing: "4", 
     viewShowCount: 3,
     viewNamePx: 72, 
-
     viewFontFamily: "System", 
     viewFontColor: "#ffffff", 
     viewBgImageUrl: "", 
@@ -37,6 +36,11 @@ export default function App() {
 
   const [viewDraftOpen, setViewDraftOpen] = useState(false);
   const [viewDraft, setViewDraft] = useState(defaultView);
+
+  function getNowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
 
   function goto(next) {
     setRoute(next);
@@ -122,14 +126,12 @@ export default function App() {
 
   useEffect(() => {
     refreshAll(route === "view");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
 
   useEffect(() => {
     if (route !== "view") return;
     const t = setInterval(() => refreshAll(true), 2000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
 
   const canSubmit = useMemo(() => {
@@ -147,7 +149,7 @@ export default function App() {
       const payload =
         mode === "manual"
           ? { name: name.trim(), mode: "manual", time: manualTime }
-          : { name: name.trim(), mode: "auto" };
+          : { name: name.trim(), mode: "auto", nowMinutes: getNowMinutes() };
 
       const resp = await sendJSON("/api/queue", "POST", payload);
       setQueue(resp.queue || []);

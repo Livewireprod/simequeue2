@@ -96,26 +96,76 @@ app.get("/api/queue", (_req, res) => {
 
 app.post("/api/queue", (req, res) => {
   const name = String(req.body?.name || "").trim();
-  if (!name) return res.status(400).json({ ok: false, error: "Name is required." });
+  if (!name) {
+    return res.status(400).json({ ok: false, error: "Name is required." });
+  }
 
   const mode = req.body?.mode === "manual" ? "manual" : "auto";
-  const requestedTime = mode === "manual" ? String(req.body?.time || "").trim() : null;
+  const requestedTime =
+    mode === "manual" ? String(req.body?.time || "").trim() : null;
+
+  const nowMinutes = Number.isFinite(req.body?.nowMinutes)
+    ? req.body.nowMinutes
+    : null;
 
   const slots = generateSlots(settings);
   const taken = getTakenTimes(queue);
 
   let chosenTime = null;
 
+  // -----------------------
+  // MANUAL MODE
+  // -----------------------
   if (mode === "manual") {
-    if (!requestedTime) return res.status(400).json({ ok: false, error: "Time is required for manual mode" });
-    if (!slots.includes(requestedTime)) return res.status(400).json({ ok: false, error: "Invalid time slot" });
-    if (taken.has(requestedTime)) return res.status(409).json({ ok: false, error: "Slot already taken" });
+    if (!requestedTime) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Time is required for manual mode" });
+    }
+
+    if (!slots.includes(requestedTime)) {
+      return res
+        .status(400)
+        .json({ ok: false, error: "Invalid time slot" });
+    }
+
+    if (taken.has(requestedTime)) {
+      return res
+        .status(409)
+        .json({ ok: false, error: "Slot already taken" });
+    }
+
     chosenTime = requestedTime;
-  } else {
-    chosenTime = slots.find((t) => !taken.has(t)) || null;
-    if (!chosenTime) return res.status(409).json({ ok: false, error: "No slots available" });
   }
 
+  // -----------------------
+  // AUTO MODE (time-aware)
+  // -----------------------
+  else {
+    let next = null;
+
+    for (const t of slots) {
+      const mins = toMinutes(t);
+
+      if (taken.has(t)) continue;
+      if (nowMinutes != null && mins < nowMinutes) continue;
+
+      next = t;
+      break;
+    }
+
+    chosenTime = next;
+
+    if (!chosenTime) {
+      return res
+        .status(409)
+        .json({ ok: false, error: "No future slots available" });
+    }
+  }
+
+  // -----------------------
+  // CREATE QUEUE ITEM
+  // -----------------------
   const item = {
     id: id(),
     name,
@@ -126,8 +176,13 @@ app.post("/api/queue", (req, res) => {
 
   queue.push(item);
 
-  res.status(201).json({ ok: true, item, queue: sortedQueue(queue) });
+  res.status(201).json({
+    ok: true,
+    item,
+    queue: sortedQueue(queue),
+  });
 });
+
 
 app.delete("/api/queue/:id", (req, res) => {
   const { id: deleteId } = req.params;
