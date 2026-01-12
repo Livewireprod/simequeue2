@@ -316,7 +316,7 @@ if (fs.existsSync(DIST_DIR)) {
 
 
 } else {
-  console.warn("⚠️ dist folder not found at:", DIST_DIR);
+  console.warn("dist folder not found at:", DIST_DIR);
 }
 // Start
 
