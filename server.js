@@ -9,23 +9,7 @@ import osc from "osc";
 const app = express();
 app.use(express.json());
 
-const OSC_HOST = process.env.OSC_HOST || "10.0.30.146"; // this will be the pc running the switcher software
-const OSC_PORT = Number(process.env.OSC_PORT || 8000);
 
-const oscUdp = new osc.UDPPort({
-  localAddress: "0.0.0.0",
-  localPort: 0,
-  remoteAddress: OSC_HOST,
-  remotePort: OSC_PORT,
-});
-
-oscUdp.open();
-
-function toOscArg(v) {
-  if (typeof v === "number") return { type: "i", value: v };
-  if (typeof v === "boolean") return { type: v ? "T" : "F", value: v };
-  return { type: "s" , value: String(v) };
-};
 
 
 let queue = [];
@@ -43,7 +27,35 @@ let settings = {
   viewSize: "6xl",
   viewSpacing: "4",
   viewShowCount: 3,
+
+  oscHost: "",
+  oscPort: 8000,
 };
+
+
+function getOscTarget() {
+  const host = (settings.oscHost || process.env.OSC_HOST || "").trim();
+  const port = Number(settings.oscPort || process.env.OSC_PORT || 8000);
+
+  return { host, port };
+}
+
+
+const oscUdp = new osc.UDPPort({
+  localAddress: "0.0.0.0",
+  localPort: 0, 
+  remoteAddress: "127.0.0.1", 
+  remotePort: 8000,
+});
+
+oscUdp.open();
+
+function toOscArg(v) {
+  if (typeof v === "number") return { type: "i", value: v };
+  if (typeof v === "boolean") return { type: v ? "T" : "F", value: v };
+  return { type: "s", value: String(v) };
+}
+
 
 // Helpers
 
@@ -108,17 +120,30 @@ app.post("/api/osc/send", (req, res) => {
     return res.status(400).json({ ok: false, error: "OSC address must start with /" });
   }
 
+  const { host, port } = getOscTarget();
+  if (!host) {
+    return res.status(400).json({ ok: false, error: "OSC target host not set" });
+  }
+
   try {
+    // set target dynamically
+    oscUdp.options.remoteAddress = host;
+    oscUdp.options.remotePort = port;
+
     oscUdp.send({
       address,
       args: args.map(toOscArg),
     });
 
-    res.json({ ok: true });
+    console.log("OSC SEND", { host, port, address, args });
+
+    return res.json({ ok: true, host, port });
   } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
+    return res.status(500).json({ ok: false, error: e?.message || "OSC send failed" });
   }
 });
+
+
 
 
 app.use("/uploads", express.static(UPLOAD_DIR));

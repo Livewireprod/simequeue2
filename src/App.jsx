@@ -196,6 +196,10 @@ export default function App() {
         viewFontColor: viewDraft.viewFontColor,
         viewBgImageUrl: viewDraft.viewBgImageUrl,
         viewBgOverlay: Number(viewDraft.viewBgOverlay ?? 0.35),
+
+        oscHost: viewDraft.oscHost,
+        oscPort: Number(viewDraft.oscPort || 8000),
+
       };
 
       const resp = await sendJSON("/api/settings", "PUT", payload);
@@ -367,9 +371,9 @@ export default function App() {
     );
   }
 
-  // -------------------------
+
   // ADMIN SCREEN
-  // -------------------------
+
   return (
     <div className="min-h-screen bg-blue-400 text-slate-900">
       <div className="mx-auto max-w-3xl px-4 py-6">
@@ -383,7 +387,7 @@ export default function App() {
   <button
     onClick={async () => {
       try {
-        await sendOsc("/preset", [1]); // PRESET 1
+        await sendOsc("/preset", [1]); 
         toast("success", "Switched preset");
       } catch (e) {
         toast("error", "OSC send failed");
@@ -496,9 +500,40 @@ export default function App() {
           </form>
 
           {/* View settings panel */}
+          
           {viewDraftOpen && (
+            
             <div className="mt-4  border border-slate-200 bg-slate-50 p-3 space-y-3">
+              <div className="border border-slate-200 bg-white p-3 space-y-3">
+  <h3 className="text-sm font-semibold">OSC Target</h3>
+
+  <div>
+    <label className="block text-xs font-medium text-slate-600">Target IP</label>
+    <input
+      value={viewDraft.oscHost || ""}
+      onChange={(e) =>
+        setViewDraft((p) => ({ ...p, oscHost: e.target.value }))
+      }
+      placeholder="e.g. 10.0.30.146"
+      className="mt-1 w-full border border-slate-200 px-3 py-2 text-sm"
+    />
+  </div>
+
+  <div>
+    <label className="block text-xs font-medium text-slate-600">Target Port</label>
+    <input
+      type="number"
+      value={viewDraft.oscPort || 8000}
+      onChange={(e) =>
+        setViewDraft((p) => ({ ...p, oscPort: e.target.value }))
+      }
+      className="mt-1 w-full border border-slate-200 px-3 py-2 text-sm"
+    />
+  </div>
+</div>
+
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                
                 <Select
                   label="Font"
                   value={viewDraft.viewFontFamily}
