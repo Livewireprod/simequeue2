@@ -3,10 +3,29 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import osc from "osc";
 
 
 const app = express();
 app.use(express.json());
+
+const OSC_HOST = process.env.OSC_HOST || "10.0.30.146"; // this will be the pc running the switcher software
+const OSC_PORT = Number(process.env.OSC_PORT || 8000);
+
+const oscUdp = new osc.UDPPort({
+  localAddress: "0.0.0.0",
+  localPort: 0,
+  remoteAddress: OSC_HOST,
+  remotePort: OSC_PORT,
+});
+
+oscUdp.open();
+
+function toOscArg(v) {
+  if (typeof v === "number") return { type: "i", value: v };
+  if (typeof v === "boolean") return { type: v ? "T" : "F", value: v };
+  return { type: "s" , value: String(v) };
+};
 
 
 let queue = [];
@@ -15,8 +34,6 @@ let settings = {
   slotMinutes: 15,
   dayStart: "09:00",
   dayEnd: "17:00",
-
-
   viewFontFamily: "System",
   viewFontColor: "#ffffff",
   viewBgImageUrl: "",
@@ -83,7 +100,27 @@ const upload = multer({
   },
 });
 
-// Serve uploaded files
+app.post("/api/osc/send", (req, res) => {
+  const address = String(req.body?.address || "").trim();
+  const args = Array.isArray(req.body?.args) ? req.body.args : [];
+
+  if (!address.startsWith("/")) {
+    return res.status(400).json({ ok: false, error: "OSC address must start with /" });
+  }
+
+  try {
+    oscUdp.send({
+      address,
+      args: args.map(toOscArg),
+    });
+
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+
 app.use("/uploads", express.static(UPLOAD_DIR));
 
 
@@ -113,9 +150,9 @@ app.post("/api/queue", (req, res) => {
 
   let chosenTime = null;
 
-  // -----------------------
+
   // MANUAL MODE
-  // -----------------------
+ 
   if (mode === "manual") {
     if (!requestedTime) {
       return res
@@ -138,9 +175,9 @@ app.post("/api/queue", (req, res) => {
     chosenTime = requestedTime;
   }
 
-  // -----------------------
-  // AUTO MODE (time-aware)
-  // -----------------------
+
+  // AUTO 
+
   else {
     let next = null;
 
@@ -163,9 +200,9 @@ app.post("/api/queue", (req, res) => {
     }
   }
 
-  // -----------------------
+
   // CREATE QUEUE ITEM
-  // -----------------------
+
   const item = {
     id: id(),
     name,

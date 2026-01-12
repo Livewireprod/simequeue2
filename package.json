@@ -13,6 +13,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "express": "^5.2.1",
     "multer": "^2.0.2",
+    "osc": "^2.4.5",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwindcss": "^4.1.18"

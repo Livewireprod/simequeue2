@@ -58,6 +58,10 @@ export default function App() {
     setStatus({ type, msg });
   }
 
+  async function sendOsc(address, args = []) {
+    return sendJSON("/api/osc/send", "POST" , { address, args });
+  }
+
   async function readJSON(path) {
     const res = await fetch(`${API_BASE}${path}`);
     const text = await res.text();
@@ -373,21 +377,38 @@ export default function App() {
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Queue Admin</h1>
           </div>
-          <div className="flex items-center gap-2">
-            {statusPill}
-            <button
-              onClick={() => refreshAll(false)}
-              className="inline-flex items-center border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50 active:bg-slate-100"
-            >
-              Refresh
-            </button>
-            <button
-              onClick={() => goto("view")}
-              className="inline-flex items-center bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 active:bg-slate-950"
-            >
-              Open view
-            </button>
-          </div>
+         <div className="flex items-center gap-2">
+  {statusPill}
+
+  <button
+    onClick={async () => {
+      try {
+        await sendOsc("/preset", [1]); // PRESET 1
+        toast("success", "Switched preset");
+      } catch (e) {
+        toast("error", "OSC send failed");
+      }
+    }}
+    className="inline-flex items-center bg-black px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500"
+  >
+    Switch
+  </button>
+
+  <button
+    onClick={() => refreshAll(false)}
+    className="inline-flex items-center border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"
+  >
+    Refresh
+  </button>
+
+  <button
+    onClick={() => goto("view")}
+    className="inline-flex items-center bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
+  >
+    Open view
+  </button>
+</div>
+
         </div>
 
         {/* Add */}
