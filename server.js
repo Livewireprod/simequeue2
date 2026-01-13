@@ -5,19 +5,15 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import osc from "osc";
 
-
 const app = express();
 app.use(express.json());
-
-
-
 
 let queue = [];
 let settings = {
 
   slotMinutes: 15,
   dayStart: "09:00",
-  dayEnd: "17:00",
+  dayEnd: "18:00",
   viewFontFamily: "System",
   viewFontColor: "#ffffff",
   viewBgImageUrl: "",
@@ -105,7 +101,7 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const upload = multer({
   dest: UPLOAD_DIR,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, //5MB
   fileFilter: (_req, file, cb) => {
     const ok = file.mimetype === "image/png" || file.mimetype === "image/jpeg";
     cb(ok ? null : new Error("Only PNG or JPEG allowed"), ok);
@@ -142,9 +138,6 @@ app.post("/api/osc/send", (req, res) => {
     return res.status(500).json({ ok: false, error: e?.message || "OSC send failed" });
   }
 });
-
-
-
 
 app.use("/uploads", express.static(UPLOAD_DIR));
 
@@ -259,7 +252,6 @@ app.delete("/api/queue/:id", (req, res) => {
   res.json({ ok: true, queue: sortedQueue(queue) });
 });
 
-// Slots helper
 app.get("/api/slots", (_req, res) => {
   const slots = generateSlots(settings);
   const taken = Array.from(getTakenTimes(queue));
@@ -279,7 +271,7 @@ app.put("/api/settings", (req, res) => {
   res.json({ ok: true, settings });
 });
 
-// Background image upload 
+
 
 app.post("/api/upload/background", upload.single("file"), (req, res) => {
   try {
@@ -293,7 +285,7 @@ app.post("/api/upload/background", upload.single("file"), (req, res) => {
 
     const url = `/uploads/${newName}`;
 
-    // Auto-save into settings so /view can pick it up immediately
+   
     settings = { ...settings, viewBgImageUrl: url };
 
     res.json({ ok: true, url, settings });

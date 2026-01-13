@@ -145,14 +145,12 @@ export default function App() {
 
   useEffect(() => {
     refreshAll(route === "view");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
 
   useEffect(() => {
     if (route !== "view") return;
     const t = setInterval(() => refreshAll(true), 2000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [route]);
 
   const canSubmit = useMemo(() => {
@@ -408,33 +406,37 @@ export default function App() {
               {queue.length === 0 ? (
                 <div className="p-10">
                   <div className="text-2xl font-semibold">No bookings yet</div>
-                  <div className="mt-2 text-base opacity-70">Add names from the admin screen.</div>
                 </div>
               ) : (
                 <div className={`flex flex-col ${viewStyle.spacing}`}>
                   {top.map((q, idx) => (
-                    <div key={q.id} className="flex items-baseline justify-between gap-6">
-                      <div className="min-w-0">
-                        <div className="flex items-baseline gap-4">
-                          <div className="text-sm font-medium opacity-70">#{idx + 1}</div>
-                          <div
-                            className="font-semibold tracking-tight truncate"
-                            style={{ fontSize: viewStyle.namePx }}
-                          >
-                            {q.name}
-                          </div>
+                   <div key={q.id} className="flex items-baseline justify-between gap-6">
+                    <div className="min-w-0">
+                     <div className="flex items-baseline gap-4">
+                      <div
+                        className="font-medium opacity-70"
+                        style={{ fontSize: viewStyle.namePx * 0.35 }}
+                      >
+                 #{idx + 1}
+                       </div>
+                         <div
+                             className="font-semibold tracking-tight truncate"
+                             style={{ fontSize: viewStyle.namePx }}
+                         >
+                      {q.name}
+                       </div>
+                         </div>
+                          </div> 
+                            <div className="shrink-0 text-right">
+                             <div className="text-sm uppercase tracking-widest opacity-60">Time</div>
+                              <div className={`font-semibold tracking-tight ${viewStyle.size}`}
+                                   style= {{ fontSize: viewStyle.namePx * 0.9 }}>
+                              {q.slot?.time || "--:--"}
                         </div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-sm uppercase tracking-widest opacity-60">Time</div>
-                        <div className="text-3xl font-semibold tracking-tight">
-                          {q.slot?.time || "--:--"}
-                        </div>
-                      </div>
                     </div>
-                  ))}
-
-                  {restCount > 0 && (
+                </div>
+              ))} 
+                {restCount > 0 && (
                     <div className="mt-2 text-base opacity-70">+ {restCount} more waiting</div>
                   )}
                 </div>
