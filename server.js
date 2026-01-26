@@ -70,6 +70,11 @@ function toHHMM(totalMins) {
   return `${h}:${m}`;
 }
 
+function getNowMinutes() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+
 function generateSlots({ dayStart, dayEnd, slotMinutes }) {
   const start = toMinutes(dayStart);
   const end = toMinutes(dayEnd);
@@ -92,6 +97,13 @@ function sortedQueue(list) {
     const bm = Number.isFinite(b.slotMinutes) ? b.slotMinutes : Infinity;
     if (am !== bm) return am - bm;
     return new Date(a.createdAt) - new Date(b.createdAt);
+  });
+}
+
+function pruneQueue(list, nowMinutes = getNowMinutes()) {
+  return list.filter((q) => {
+    if (!Number.isFinite(q.slotMinutes)) return true;
+    return q.slotMinutes >= nowMinutes;
   });
 }
 
@@ -146,10 +158,12 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 
 // Queue
 app.get("/api/queue", (_req, res) => {
+  queue = pruneQueue(queue);
   res.json({ ok: true, queue: sortedQueue(queue) });
 });
 
 app.post("/api/queue", (req, res) => {
+  queue = pruneQueue(queue);
   const name = String(req.body?.name || "").trim();
   if (!name) {
     return res.status(400).json({ ok: false, error: "Name is required." });
@@ -161,7 +175,7 @@ app.post("/api/queue", (req, res) => {
 
   const nowMinutes = Number.isFinite(req.body?.nowMinutes)
     ? req.body.nowMinutes
-    : null;
+    : getNowMinutes();
 
   const slots = generateSlots(settings);
   const taken = getTakenTimes(queue);
@@ -184,6 +198,12 @@ app.post("/api/queue", (req, res) => {
         .json({ ok: false, error: "Invalid time slot" });
     }
 
+    if (toMinutes(requestedTime) < nowMinutes) {
+      return res
+        .status(409)
+        .json({ ok: false, error: "Time slot has already passed" });
+    }
+
     if (taken.has(requestedTime)) {
       return res
         .status(409)
@@ -203,7 +223,7 @@ app.post("/api/queue", (req, res) => {
       const mins = toMinutes(t);
 
       if (taken.has(t)) continue;
-      if (nowMinutes != null && mins < nowMinutes) continue;
+      if (mins < nowMinutes) continue;
 
       next = t;
       break;
@@ -253,7 +273,9 @@ app.delete("/api/queue/:id", (req, res) => {
 });
 
 app.get("/api/slots", (_req, res) => {
-  const slots = generateSlots(settings);
+  queue = pruneQueue(queue);
+  const nowMinutes = getNowMinutes();
+  const slots = generateSlots(settings).filter((t) => toMinutes(t) >= nowMinutes);
   const taken = Array.from(getTakenTimes(queue));
   res.json({ ok: true, slots, taken });
 });

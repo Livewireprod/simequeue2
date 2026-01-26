@@ -25,10 +25,11 @@ export default function App() {
     viewSpacing: "4",
     viewShowCount: 3,
     viewNamePx: 72,
-    viewFontFamily: "System",
+    viewSafeBottomPx: 240,
+    viewShowAvailable: true,
+    viewFontFamily: "DM Sans",
     viewFontColor: "#ffffff",
     viewBgImageUrl: "",
-    viewBgOverlay: 0.35,
   };
 
   const [viewDraftOpen, setViewDraftOpen] = useState(false);
@@ -46,6 +47,12 @@ export default function App() {
   function getNowMinutes() {
     const d = new Date();
     return d.getHours() * 60 + d.getMinutes();
+  }
+
+  function toMinutes(hhmm) {
+    const [h, m] = String(hhmm || "").split(":").map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    return h * 60 + m;
   }
 
   function goto(next) {
@@ -207,10 +214,11 @@ export default function App() {
         viewSpacing: viewDraft.viewSpacing,
         viewShowCount: Number(viewDraft.viewShowCount || 3),
         viewNamePx: Number(viewDraft.viewNamePx || 72),
+        viewSafeBottomPx: Number(viewDraft.viewSafeBottomPx || 0),
+        viewShowAvailable: Boolean(viewDraft.viewShowAvailable),
         viewFontFamily: viewDraft.viewFontFamily,
         viewFontColor: viewDraft.viewFontColor,
         viewBgImageUrl: viewDraft.viewBgImageUrl,
-        viewBgOverlay: Number(viewDraft.viewBgOverlay ?? 0.35),
       };
 
       const resp = await sendJSON("/api/settings", "PUT", payload);
@@ -316,7 +324,9 @@ export default function App() {
       links.push(el);
     }
 
-    if (fam === "poppins") {
+    if (fam === "dm sans") {
+      addFont("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap");
+    } else if (fam === "poppins") {
       addFont("https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap");
     } else if (fam === "inter") {
       addFont("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap");
@@ -333,23 +343,44 @@ export default function App() {
     const justifyMap = { start: "justify-start", center: "justify-center", end: "justify-end" };
 
     const fontFamily =
-      s.viewFontFamily === "Poppins"
+      s.viewFontFamily === "DM Sans"
+        ? "\"DM Sans\", system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
+        : s.viewFontFamily === "Poppins"
         ? "Poppins, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
         : s.viewFontFamily === "Inter"
         ? "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif"
         : "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
 
+    const spacingRemMap = {
+      0: 0,
+      1: 0.25,
+      2: 0.5,
+      3: 0.75,
+      4: 1,
+      5: 1.25,
+      6: 1.5,
+      8: 2,
+      10: 2.5,
+      12: 3,
+      16: 4,
+    };
+    const spacingKey = Number(s.viewSpacing);
+    const spacingRem = Number.isFinite(spacingKey)
+      ? spacingRemMap[spacingKey] ?? spacingRemMap[4]
+      : spacingRemMap[4];
+
     return {
       align: alignMap[s.viewAlign] || "items-center",
       justify: justifyMap[s.viewJustify] || "justify-center",
       size: `text-${s.viewSize}`,
-      spacing: `space-y-${s.viewSpacing}`,
+      spacingRem,
       showCount: Number(s.viewShowCount || 3),
       namePx: Number(s.viewNamePx || 72),
+      safeBottomPx: Math.max(0, Number(s.viewSafeBottomPx || 0)),
+      showAvailable: s.viewShowAvailable !== false,
       fontFamily,
       fontColor: s.viewFontColor || "#ffffff",
       bgImageUrl: s.viewBgImageUrl || "",
-      overlay: Math.max(0, Math.min(0.85, Number(s.viewBgOverlay ?? 0.35))),
     };
   }, [settings]);
 
@@ -378,12 +409,63 @@ export default function App() {
 
   // VIEW SCREEN
   if (route === "view") {
-    const top = queue.slice(0, viewStyle.showCount);
-    const restCount = Math.max(0, queue.length - top.length);
+    const nowMinutes = getNowMinutes();
+    const nextUpIndex = queue.findIndex((q) => {
+      const mins = Number.isFinite(q.slotMinutes) ? q.slotMinutes : null;
+      return mins === null || mins >= nowMinutes;
+    });
+    const nextUp = nextUpIndex >= 0 ? queue[nextUpIndex] : null;
+    const remainingQueue =
+      nextUpIndex >= 0
+        ? [...queue.slice(0, nextUpIndex), ...queue.slice(nextUpIndex + 1)]
+        : queue;
+    const availableTimes = slots.filter((t) => {
+      if (taken.has(t)) return false;
+      const mins = toMinutes(t);
+      return mins !== null && mins >= nowMinutes;
+    });
+    const futureBooked = remainingQueue.filter((q) => {
+      if (!Number.isFinite(q.slotMinutes)) return true;
+      return q.slotMinutes >= nowMinutes;
+    });
+    const bookedByTime = new Map();
+    for (const q of futureBooked) {
+      const t = q.slot?.time;
+      if (!t) continue;
+      if (!bookedByTime.has(t)) bookedByTime.set(t, []);
+      bookedByTime.get(t).push(q);
+    }
+
+    const allRows = [];
+    for (const t of slots) {
+      const mins = toMinutes(t);
+      if (mins === null || mins < nowMinutes) continue;
+      const bookedAtTime = bookedByTime.get(t) || [];
+      if (bookedAtTime.length) {
+        for (const q of bookedAtTime) {
+          allRows.push({
+            id: q.id,
+            name: q.name,
+            time: q.slot?.time || "--:--",
+            available: false,
+          });
+        }
+      } else if (viewStyle.showAvailable && availableTimes.includes(t)) {
+        allRows.push({
+          id: `available-${t}`,
+          name: "Available",
+          time: t,
+          available: true,
+        });
+      }
+    }
+    const tableRows = allRows.slice(0, viewStyle.showCount);
+    const restCount = Math.max(0, allRows.length - tableRows.length);
+    const hasRows = Boolean(nextUp) || tableRows.length > 0;
 
     return (
       <div
-        className="min-h-screen w-full relative"
+        className="min-h-screen w-full relative overflow-hidden"
         style={{
           color: viewStyle.fontColor,
           fontFamily: viewStyle.fontFamily,
@@ -393,50 +475,86 @@ export default function App() {
           backgroundColor: "#000000",
         }}
       >
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `rgba(0,0,0,${viewStyle.overlay})`,
-          }}
-        />
 
         <div className="relative">
-          <div className={`min-h-screen w-full flex ${viewStyle.align} ${viewStyle.justify} px-10`}>
+          <div
+            className={`w-full flex ${viewStyle.align} ${viewStyle.justify} px-10 overflow-hidden`}
+            style={{ height: `calc(100vh - ${viewStyle.safeBottomPx}px)` }}
+          >
             <div className="w-full max-w-5xl">
-              {queue.length === 0 ? (
+              {!hasRows ? (
                 <div className="p-10">
                   <div className="text-2xl font-semibold">No bookings yet</div>
                 </div>
               ) : (
-                <div className={`flex flex-col ${viewStyle.spacing}`}>
-                  {top.map((q, idx) => (
-                   <div key={q.id} className="flex items-baseline justify-between gap-6">
-                    <div className="min-w-0">
-                     <div className="flex items-baseline gap-4">
+                <div>
+                  {nextUp && (
+                    <div className="mb-8 border-b border-white/20 pb-6">
                       <div
-                        className="font-medium opacity-70"
-                        style={{ fontSize: viewStyle.namePx * 0.35 }}
+                        className="text-xs uppercase tracking-widest opacity-60"
+                        style={{ fontSize: viewStyle.namePx * 0.25 }}
                       >
-                 #{idx + 1}
-                       </div>
-                         <div
-                             className="font-semibold tracking-tight truncate"
-                             style={{ fontSize: viewStyle.namePx }}
-                         >
-                      {q.name}
-                       </div>
-                         </div>
-                          </div> 
-                            <div className="shrink-0 text-right">
-                             <div className="text-sm uppercase tracking-widest opacity-60">Time</div>
-                              <div className={`font-semibold tracking-tight ${viewStyle.size}`}
-                                   style= {{ fontSize: viewStyle.namePx * 0.9 }}>
-                              {q.slot?.time || "--:--"}
+                        Next up
+                      </div>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6">
+                        <div
+                          className="font-semibold tracking-tight truncate"
+                          style={{ fontSize: viewStyle.namePx }}
+                        >
+                          {nextUp.name}
                         </div>
+                        <div
+                          className={`font-semibold tracking-tight ${viewStyle.size} text-right`}
+                          style={{ fontSize: viewStyle.namePx * 0.9 }}
+                        >
+                          {nextUp.slot?.time || "--:--"}
+                        </div>
+                      </div>
                     </div>
-                </div>
-              ))} 
-                {restCount > 0 && (
+                  )}
+
+                  <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6">
+                    <div
+                      className="text-xs uppercase tracking-widest opacity-60"
+                      style={{ fontSize: viewStyle.namePx * 0.25 }}
+                    >
+                      Name
+                    </div>
+                    <div
+                      className="text-xs uppercase tracking-widest opacity-60 text-right"
+                      style={{ fontSize: viewStyle.namePx * 0.25 }}
+                    >
+                      Time
+                    </div>
+                  </div>
+
+                  <div className="mt-2 flex flex-col" style={{ gap: `${viewStyle.spacingRem}rem` }}>
+                    {tableRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-6"
+                      >
+                        <div
+                          className={`font-semibold tracking-tight truncate${
+                            row.available ? " opacity-70" : ""
+                          }`}
+                          style={{ fontSize: viewStyle.namePx }}
+                        >
+                          {row.name}
+                        </div>
+                        <div
+                          className={`font-semibold tracking-tight ${viewStyle.size} text-right${
+                            row.available ? " opacity-70" : ""
+                          }`}
+                          style={{ fontSize: viewStyle.namePx * 0.9 }}
+                        >
+                          {row.time}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {restCount > 0 && (
                     <div className="mt-2 text-base opacity-70">+ {restCount} more waiting</div>
                   )}
                 </div>
@@ -578,6 +696,7 @@ export default function App() {
                       onChange={(v) => setViewDraft((p) => ({ ...p, viewFontFamily: v }))}
                       options={[
                         { value: "System", label: "System" },
+                        { value: "DM Sans", label: "DM Sans" },
                         { value: "Poppins", label: "Poppins" },
                         { value: "Inter", label: "Inter" },
                       ]}
@@ -621,6 +740,22 @@ export default function App() {
                       />
                     </div>
 
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600">
+                        Bottom safe area (px)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={800}
+                        value={viewDraft.viewSafeBottomPx}
+                        onChange={(e) =>
+                          setViewDraft((p) => ({ ...p, viewSafeBottomPx: e.target.value }))
+                        }
+                        className="mt-1 w-full border border-slate-200 bg-white px-3 py-2 text-sm"
+                      />
+                    </div>
+
                     <Select
                       label="Position"
                       value={`${viewDraft.viewAlign}:${viewDraft.viewJustify}`}
@@ -642,10 +777,13 @@ export default function App() {
                       value={String(viewDraft.viewSpacing)}
                       onChange={(v) => setViewDraft((p) => ({ ...p, viewSpacing: v }))}
                       options={[
+                        { value: "1", label: "X-tight" },
                         { value: "2", label: "Tight" },
-                        { value: "3", label: "Normal" },
-                        { value: "4", label: "Relaxed" },
-                        { value: "6", label: "Wide" },
+                        { value: "3", label: "Compact" },
+                        { value: "4", label: "Normal" },
+                        { value: "6", label: "Relaxed" },
+                        { value: "8", label: "Wide" },
+                        { value: "10", label: "X-wide" },
                       ]}
                     />
 
@@ -661,6 +799,22 @@ export default function App() {
                         }
                         className="mt-1 w-full border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-slate-600">
+                        Show available slots
+                      </label>
+                      <select
+                        value={viewDraft.viewShowAvailable ? "yes" : "no"}
+                        onChange={(e) =>
+                          setViewDraft((p) => ({ ...p, viewShowAvailable: e.target.value === "yes" }))
+                        }
+                        className="mt-1 w-full border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-300 focus:ring-2 focus:ring-slate-100"
+                      >
+                        <option value="yes">Yes</option>
+                        <option value="no">No</option>
+                      </select>
                     </div>
                   </div>
 
@@ -704,22 +858,6 @@ export default function App() {
                       <div className="mt-3 text-xs text-slate-500">No image set (falls back to black).</div>
                     )}
 
-                    <div className="mt-3">
-                      <label className="block text-xs font-medium text-slate-600">
-                        Overlay (readability)
-                      </label>
-                      <input
-                        type="range"
-                        min={0}
-                        max={0.8}
-                        step={0.05}
-                        value={viewDraft.viewBgOverlay}
-                        onChange={(e) =>
-                          setViewDraft((p) => ({ ...p, viewBgOverlay: Number(e.target.value) }))
-                        }
-                        className="mt-2 w-full"
-                      />
-                    </div>
                   </div>
 
                   <div className="flex items-center justify-between">
